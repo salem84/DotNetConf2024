@@ -28,16 +28,16 @@ public class InMemLoggerProvider : ILoggerProvider
 
 public class InMemoryLogger : ILogger
 {
-    private readonly List<(LogLevel, Exception, string)> logLines = new List<(LogLevel, Exception, string)>();
+    private readonly List<LogEvent> logLines = new List<LogEvent>();
 
-    public IEnumerable<(LogLevel Level, Exception Exception, string Message)> RecordedLogs => this.logLines.AsReadOnly();
-    public IEnumerable<(LogLevel Level, Exception Exception, string Message)> RecordedTraceLogs => this.logLines.Where(l => l.Item1 == LogLevel.Trace);
-    public IEnumerable<(LogLevel Level, Exception Exception, string Message)> RecordedDebugLogs => this.logLines.Where(l => l.Item1 == LogLevel.Debug);
-    public IEnumerable<(LogLevel Level, Exception Exception, string Message)> RecordedInformationLogs => this.logLines.Where(l => l.Item1 == LogLevel.Information);
-    public IEnumerable<(LogLevel Level, Exception Exception, string Message)> RecordedWarningLogs => this.logLines.Where(l => l.Item1 == LogLevel.Warning);
-    public IEnumerable<(LogLevel Level, Exception Exception, string Message)> RecordedErrorLogs => this.logLines.Where(l => l.Item1 == LogLevel.Error);
-    public IEnumerable<(LogLevel Level, Exception Exception, string Message)> RecordedCriticalLogs => this.logLines.Where(l => l.Item1 == LogLevel.Critical);
-    public IEnumerable<(LogLevel Level, Exception Exception, string Message)> LatestLogs => this.logLines.AsReadOnly().TakeLast(20);
+    public IEnumerable<LogEvent> RecordedLogs => this.logLines.AsReadOnly();
+    public IEnumerable<LogEvent> RecordedTraceLogs => this.logLines.Where(l => l.Level == LogLevel.Trace);
+    public IEnumerable<LogEvent> RecordedDebugLogs => this.logLines.Where(l => l.Level == LogLevel.Debug);
+    public IEnumerable<LogEvent> RecordedInformationLogs => this.logLines.Where(l => l.Level == LogLevel.Information);
+    public IEnumerable<LogEvent> RecordedWarningLogs => this.logLines.Where(l => l.Level == LogLevel.Warning);
+    public IEnumerable<LogEvent> RecordedErrorLogs => this.logLines.Where(l => l.Level == LogLevel.Error);
+    public IEnumerable<LogEvent> RecordedCriticalLogs => this.logLines.Where(l => l.Level == LogLevel.Critical);
+    public IEnumerable<LogEvent> LatestLogs => this.logLines.AsReadOnly().OrderByDescending(l => l.Timestamp).Take(20);
 
     public IDisposable BeginScope<TState>(TState state) => null;
 
@@ -45,6 +45,8 @@ public class InMemoryLogger : ILogger
 
     public void Log<TState>(LogLevel logLevel, EventId eventId, TState state, Exception exception, Func<TState, Exception, string> formatter)
     {
-        this.logLines.Add((logLevel, exception, formatter(state, exception)));
+        this.logLines.Add(new LogEvent(DateTime.Now, logLevel, exception, formatter(state, exception)));
     }
 }
+
+public record LogEvent(DateTime Timestamp, LogLevel Level, Exception Exception, string Message);

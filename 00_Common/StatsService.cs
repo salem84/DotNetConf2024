@@ -1,5 +1,5 @@
 ﻿namespace Common;
-internal class StatsService
+public class StatsService
 {
     public int TotalRequests { get; set; }
     public int EventualSuccesses { get; set; }
