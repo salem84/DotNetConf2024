@@ -29,13 +29,15 @@ public class LayoutUI(StatsService statsService, InMemoryLogger memoryLogger)
 
         layout["Stats"].Update(
             new Panel(
-                new Table()
-                    .AddColumns("[blue]Stats[/]", "[green]Total[/]")
-                    .AddRow("Total Requests", statsService.TotalRequests.ToString())
-                    .AddRow("Retry", statsService.Retries.ToString())
-                    .Expand())
+                new BarChart()
+                    .CenterLabel()
+                    .AddItem("Requests", statsService.TotalRequests, Color.Yellow)
+                    .AddItem("Retries", statsService.Retries, Color.Red)
+                )
+            .PadTop(1)
             .Header("Statistics")
             .Expand());
+
 
         //layout["Title"].Update(
         //new Panel(
