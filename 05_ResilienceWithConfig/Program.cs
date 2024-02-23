@@ -2,12 +2,16 @@
 using Microsoft.Extensions.DependencyInjection;
 using Microsoft.Extensions.Hosting;
 using Microsoft.Extensions.Http.Resilience;
+using Microsoft.Extensions.Logging;
 using Polly;
 using Polly.Simmy;
 
 HostApplicationBuilder builder = Host.CreateApplicationBuilder(args);
 IServiceCollection services = builder.Services;
 
+services.AddLogging(builder => builder.ClearProviders().AddInMemory());
+services.AddSingleton<StatsService>();
+services.AddScoped<LayoutUI>();
 var httpClientBuilder = services.AddHttpClient<MealDbClient>();
 
 httpClientBuilder.AddStandardResilienceHandler()
@@ -46,12 +50,16 @@ httpClientBuilder.AddResilienceHandler("chaos", (ResiliencePipelineBuilder<HttpR
 
 var host = builder.Build();
 
-// Make resilient HTTP request
 var service = host.Services.GetRequiredService<MealDbClient>();
+var layoutUI = host.Services.GetRequiredService<LayoutUI>();
+var statsService = host.Services.GetRequiredService<StatsService>();
+using var cancellationSource = new CancellationTokenSource();
+var cancellationToken = cancellationSource.Token;
 
-do
+while (true)
 {
-    var response = await service.GetRandomMealAsync(default);
+    layoutUI.UpdateUI();
     Thread.Sleep(1000);
+    statsService.TotalRequests++;
+    var response = await service.GetRandomMealAsync(cancellationToken);
 }
-while (true);

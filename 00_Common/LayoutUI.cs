@@ -16,12 +16,12 @@ public class LayoutUI(StatsService statsService, InMemoryLogger memoryLogger)
                 .SplitColumns(
                     new Layout("Left")
                         .SplitRows(
-                            new Layout("Stats"),
-                            new Layout("LeftBottom")),
+                            new Layout("Config"),
+                            new Layout("Stats")),
                     new Layout("Results")/*.Ratio(2)*/),
             new Layout("Logs"));
 
-        layout["LeftBottom"].Update(
+        layout["Config"].Update(
             new Panel("[blink]PRESS ANY KEY TO QUIT[/]")
                 .Expand()
                 .BorderColor(Color.Yellow)
@@ -44,18 +44,41 @@ public class LayoutUI(StatsService statsService, InMemoryLogger memoryLogger)
         //        new FigletText(Assembly.GetEntryAssembly().GetName().Name.Substring(3)))
         //    .Expand());
 
-        var latestLogs = memoryLogger.LatestLogs.Select(l => new Markup(FormatToSpectreText(l)));
+        var latestLogs = memoryLogger.LatestLogs.Select(FormatLogToSpectre);
         layout["Logs"].Update(
             new Panel(new Rows(latestLogs))
                 .Header("[green]Logs[/]")
                 .Expand());
 
+        var latestResults = statsService.HttpResultEvents.OrderByDescending(x => x.Timestamp).Select(FormatResultToSpectre);
+        layout["Results"].Update(
+            new Panel(new Rows(latestResults))
+                .Header("[green]Results[/]")
+                .Expand());
+
         AnsiConsole.Write(layout);
     }
 
-    private string FormatToSpectreText(LogEvent logEvent)
+    private Markup FormatResultToSpectre(HttpResultEvent r)
     {
-        return $"{logEvent.Timestamp.ToLongTimeString()} {GetLevelMarkup(logEvent.Level)}{logEvent.Message}";
+        var colorStatusCode = r.StatusCode switch
+        {
+            200 and < 300 => "green",
+            500 and < 600 => "orange3",
+            _ => "red"
+        };
+
+        var colorDuration = r.Duration switch
+        {
+            > 1000 => "orange2",
+            _ => "grey"
+        };
+        return new Markup($"[grey]{r.Timestamp.ToLongTimeString()}[/] [{colorStatusCode}]{r.StatusCode}[/] [grey]{r.Duration}ms[/] [{colorStatusCode}]{r.Result[..Math.Min(30, r.Result.Length)]}[/]");
+    }
+
+    private Markup FormatLogToSpectre(LogEvent logEvent)
+    {
+        return new Markup($"{logEvent.Timestamp.ToLongTimeString()} {GetLevelMarkup(logEvent.Level)}{logEvent.Message}");
     }
 
     private string GetLevelMarkup(LogLevel level)
