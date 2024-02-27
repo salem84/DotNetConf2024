@@ -12,16 +12,16 @@ using Polly.Telemetry;
 HostApplicationBuilder builder = Host.CreateApplicationBuilder(args);
 IServiceCollection services = builder.Services;
 
-services.AddLogging(builder => builder.ClearProviders().AddInMemory());
+services.AddLogging(builder => builder.ConfigureAppLogging());
 services.AddSingleton<StatsService>();
 services.AddScoped<LayoutUI>();
 var httpClientBuilder = services.AddHttpClient<MealDbClient>();
 
-var telemetryOptions = new TelemetryOptions
+services.Configure<TelemetryOptions>(options =>
 {
-    LoggerFactory = LoggerFactory.Create(builder => builder.AddInMemory())
-};
-telemetryOptions.MeteringEnrichers.Add(new CustomMeteringEnricher());
+    options.LoggerFactory = LoggerFactory.Create(builder => builder.AddInMemory());
+    options.MeteringEnrichers.Add(new CustomMeteringEnricher());
+});
 
 httpClientBuilder.AddResilienceHandler("standard", (builder, context) =>
 {
@@ -42,10 +42,9 @@ httpClientBuilder.AddResilienceHandler("standard", (builder, context) =>
                 return default;
             }
         })
-        .AddTimeout(TimeSpan.FromSeconds(5))
-        .ConfigureTelemetry(telemetryOptions);
-}
-);
+        .AddTimeout(TimeSpan.FromSeconds(5));
+    //.ConfigureTelemetry(telemetryOptions)
+});
 
 httpClientBuilder.AddResilienceHandler("chaos", (ResiliencePipelineBuilder<HttpResponseMessage> builder) =>
 {
@@ -77,6 +76,8 @@ var statsService = host.Services.GetRequiredService<StatsService>();
 var meterProvider = host.Services.GetRequiredService<MeterProvider>();
 using var cancellationSource = new CancellationTokenSource();
 var cancellationToken = cancellationSource.Token;
+
+//layoutUI.AutoRefreshLayoutUI();
 
 while (true)
 {
