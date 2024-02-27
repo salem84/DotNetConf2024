@@ -1,6 +1,7 @@
 ﻿namespace Common;
 
 using System.Diagnostics;
+using System.Diagnostics.Metrics;
 using System.Net.Http.Json;
 using System.Text.Json.Serialization;
 
@@ -8,15 +9,21 @@ public class MealDbClient
 {
     private readonly HttpClient _client;
     private readonly StatsService _statsService;
+    private readonly IMeterFactory _meterFactory;
 
-    public MealDbClient(HttpClient client, StatsService statsService)
+    public MealDbClient(HttpClient client, StatsService statsService, IMeterFactory meterFactory)
     {
         _client = client;
         _statsService = statsService;
+        _meterFactory = meterFactory;
         _client.BaseAddress = new Uri("https://www.themealdb.com/api/json/v1/1/");
     }
     public async Task<SearchMealResponse> GetRandomMealAsync(CancellationToken cancellationToken)
     {
+        var meter = _meterFactory.Create("MeterName");
+        var instrument = meter.CreateCounter<int>("counter", null, null, new TagList() { { "counterKey1", "counterValue1" } });
+        instrument.Add(1);
+
         SearchMealResponse mealResult = new SearchMealResponse([]);
         var watch = Stopwatch.StartNew();
         try
@@ -30,7 +37,7 @@ public class MealDbClient
             _statsService.HttpResultEvents.Add(new HttpResultEvent(DateTime.Now, (int)responseMessage.StatusCode, watch.ElapsedMilliseconds, mealName));
             return mealResult;
         }
-        catch(Exception ex)
+        catch (Exception ex)
         {
             _statsService.HttpResultEvents.Add(new HttpResultEvent(DateTime.Now, -1, watch.ElapsedMilliseconds, ex.Message));
             return new SearchMealResponse([]);

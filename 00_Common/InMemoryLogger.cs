@@ -1,10 +1,10 @@
 ﻿namespace Common;
 
+using Microsoft.Extensions.DependencyInjection;
+using Microsoft.Extensions.Logging;
 using System;
 using System.Collections.Generic;
 using System.Linq;
-using Microsoft.Extensions.DependencyInjection;
-using Microsoft.Extensions.Logging;
 public static class LoggingBuilderExtensions
 {
     public static ILoggingBuilder AddInMemory(this ILoggingBuilder builder)
@@ -12,6 +12,14 @@ public static class LoggingBuilderExtensions
         var logger = new InMemoryLogger();
         builder.Services.AddSingleton(logger);
         return builder.AddProvider(new InMemLoggerProvider(logger));
+    }
+
+    public static ILoggingBuilder ConfigureAppLogging(this ILoggingBuilder builder)
+    {
+        builder.ClearProviders();
+        builder.AddFilter("System.Net.Http", LogLevel.Error);
+        builder.AddInMemory();
+        return builder;
     }
 }
 

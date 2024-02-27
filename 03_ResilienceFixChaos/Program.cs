@@ -13,7 +13,13 @@ services.AddSingleton<StatsService>();
 services.AddScoped<LayoutUI>();
 var httpClientBuilder = services.AddHttpClient<MealDbClient>();
 
-//TODO METTERE COMMENTO CON TIPOLOGIA DI STRATEGIA
+/*
+ * RateLimiter(httpStandardResilienceOptions.RateLimiter)
+ * Timeout(httpStandardResilienceOptions.TotalRequestTimeout)
+ * Retry(httpStandardResilienceOptions.Retry)
+ * CircuitBreaker(httpStandardResilienceOptions.CircuitBreaker)
+ * Timeout(httpStandardResilienceOptions.AttemptTimeout);
+ */
 httpClientBuilder.AddStandardResilienceHandler();
 
 httpClientBuilder.AddResilienceHandler("chaos", (ResiliencePipelineBuilder<HttpResponseMessage> builder) =>
@@ -23,8 +29,7 @@ httpClientBuilder.AddResilienceHandler("chaos", (ResiliencePipelineBuilder<HttpR
 
     //TODO CAMBIARE ECCEZIONE LANCIATA
     _ = builder
-        .AddChaosLatency(InjectionRate, TimeSpan.FromSeconds(5)) // Add latency to simulate network delays
-        .AddChaosFault(InjectionRate, () => new InvalidOperationException("Chaos strategy injection!")) // Inject faults to simulate system errors
+        .AddChaosLatency(InjectionRate, TimeSpan.FromSeconds(1)) // Add latency to simulate network delays
         .AddChaosOutcome(InjectionRate, () => new HttpResponseMessage(System.Net.HttpStatusCode.InternalServerError)); // Simulate server errors
 });
 

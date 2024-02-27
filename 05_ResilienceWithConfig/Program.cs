@@ -9,17 +9,29 @@ using Polly.Simmy;
 HostApplicationBuilder builder = Host.CreateApplicationBuilder(args);
 IServiceCollection services = builder.Services;
 
-services.AddLogging(builder => builder.ClearProviders().AddInMemory());
+services.AddLogging(builder => builder.ConfigureAppLogging());
 services.AddSingleton<StatsService>();
 services.AddScoped<LayoutUI>();
 var httpClientBuilder = services.AddHttpClient<MealDbClient>();
 
+/*
+ * RateLimiter(httpStandardResilienceOptions.RateLimiter)
+ * Timeout(httpStandardResilienceOptions.TotalRequestTimeout)
+ * Retry(httpStandardResilienceOptions.Retry)
+ * CircuitBreaker(httpStandardResilienceOptions.CircuitBreaker)
+ * Timeout(httpStandardResilienceOptions.AttemptTimeout);
+ */
 httpClientBuilder.AddStandardResilienceHandler()
-    .Configure(options =>
+    .Configure((options, serviceProvider) =>
     {
         // Update attempt timeout to 1 second
         options.AttemptTimeout.Timeout = TimeSpan.FromSeconds(1);
-
+        options.AttemptTimeout.OnTimeout = (args) =>
+        {
+            var logger = serviceProvider.GetRequiredService<ILogger<Program>>();
+            logger.LogWarning("Attempt timeout!");
+            return default;
+        };
         // Update circuit breaker to handle transient errors and InvalidOperationException
         options.CircuitBreaker.ShouldHandle = args => args.Outcome switch
         {
@@ -27,6 +39,9 @@ httpClientBuilder.AddStandardResilienceHandler()
             { Exception: InvalidOperationException } => PredicateResult.True(),
             _ => PredicateResult.False()
         };
+
+        // Default Value MaxRetryAttempts is 3
+        // options.Retry.MaxRetryAttempts = 5;
 
         // Update retry strategy to handle transient errors and InvalidOperationException
         options.Retry.ShouldHandle = args => args.Outcome switch
@@ -39,13 +54,11 @@ httpClientBuilder.AddStandardResilienceHandler()
 
 httpClientBuilder.AddResilienceHandler("chaos", (ResiliencePipelineBuilder<HttpResponseMessage> builder) =>
 {
-    // Set the chaos injection rate to 50%
-    const double InjectionRate = 0.5;
 
     _ = builder
-        .AddChaosLatency(InjectionRate, TimeSpan.FromSeconds(5)) // Add latency to simulate network delays
-        .AddChaosFault(InjectionRate, () => new InvalidOperationException("Chaos strategy injection!")) // Inject faults to simulate system errors
-        .AddChaosOutcome(InjectionRate, () => new HttpResponseMessage(System.Net.HttpStatusCode.InternalServerError)); // Simulate server errors
+        .AddChaosLatency(0.2, TimeSpan.FromSeconds(3)) // Add latency to simulate network delays
+        .AddChaosFault(0.3, () => new InvalidOperationException("Chaos strategy injection!")) // Inject faults to simulate system errors
+        .AddChaosOutcome(0.3, () => new HttpResponseMessage(System.Net.HttpStatusCode.InternalServerError)); // Simulate server errors
 });
 
 var host = builder.Build();
@@ -56,9 +69,10 @@ var statsService = host.Services.GetRequiredService<StatsService>();
 using var cancellationSource = new CancellationTokenSource();
 var cancellationToken = cancellationSource.Token;
 
+layoutUI.AutoRefreshLayoutUI();
+
 while (true)
 {
-    layoutUI.UpdateUI();
     Thread.Sleep(1000);
     statsService.TotalRequests++;
     var response = await service.GetRandomMealAsync(cancellationToken);

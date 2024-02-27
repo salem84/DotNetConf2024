@@ -15,7 +15,7 @@ Project("{9A19103F-16F7-4668-BE54-9A1E7A4F7556}") = "04_CustomResilience", "04_C
 EndProject
 Project("{9A19103F-16F7-4668-BE54-9A1E7A4F7556}") = "05_ResilienceWithConfig", "05_ResilienceWithConfig\05_ResilienceWithConfig.csproj", "{37B5C157-6A19-48B9-A4E6-C0007BF2B8D8}"
 EndProject
-Project("{9A19103F-16F7-4668-BE54-9A1E7A4F7556}") = "06_ResilienceMetrics", "06_ResilienceMetrics\06_ResilienceMetrics.csproj", "{E74D7B7B-8BB2-4FDC-8BFB-D27CF24E3D92}"
+Project("{9A19103F-16F7-4668-BE54-9A1E7A4F7556}") = "06_CustomResilienceWithMetrics", "06_ResilienceMetrics\06_CustomResilienceWithMetrics.csproj", "{E74D7B7B-8BB2-4FDC-8BFB-D27CF24E3D92}"
 EndProject
 Global
 	GlobalSection(SolutionConfigurationPlatforms) = preSolution

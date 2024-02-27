@@ -1,11 +1,25 @@
 ﻿using Microsoft.Extensions.Logging;
 using Spectre.Console;
-using System.Reflection;
 
 namespace Common;
 
 public class LayoutUI(StatsService statsService, InMemoryLogger memoryLogger)
 {
+    public void AutoRefreshLayoutUI()
+    {
+        // crea un thread separato che gira in background
+        var thread = new Thread(() =>
+        {
+            while (true)
+            {
+                UpdateUI();
+                Thread.Sleep(2000);
+            }
+        });
+
+        thread.IsBackground = true;
+        thread.Start();
+    }
     public void UpdateUI()
     {
         var layout = new Layout();
@@ -56,6 +70,7 @@ public class LayoutUI(StatsService statsService, InMemoryLogger memoryLogger)
                 .Header("[green]Results[/]")
                 .Expand());
 
+        AnsiConsole.Clear();
         AnsiConsole.Write(layout);
     }
 
