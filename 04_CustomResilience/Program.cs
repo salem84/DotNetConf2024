@@ -1,4 +1,4 @@
-﻿using Common;
+﻿using DotNetConf2024.Common;
 using Microsoft.Extensions.DependencyInjection;
 using Microsoft.Extensions.Hosting;
 using Microsoft.Extensions.Http.Resilience;
@@ -9,8 +9,7 @@ using Polly.Simmy;
 HostApplicationBuilder builder = Host.CreateApplicationBuilder(args);
 IServiceCollection services = builder.Services;
 
-services.AddLogging(builder => builder.ClearProviders().AddInMemory());
-services.AddSingleton<StatsService>();
+services.AddLogging(builder => builder.ConfigureAppLogging());
 services.AddScoped<LayoutUI>();
 var httpClientBuilder = services.AddHttpClient<MealDbClient>();
 

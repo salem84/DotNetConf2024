@@ -1,4 +1,6 @@
-﻿public class StatsService
+﻿namespace DotNetConf2024.Common;
+
+public class StatsService
 {
     public int TotalRequests { get; set; }
     public int EventualSuccesses { get; set; }

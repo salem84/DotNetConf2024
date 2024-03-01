@@ -1,4 +1,4 @@
-﻿namespace Common;
+﻿namespace DotNetConf2024.Common;
 
 using System.Diagnostics;
 using System.Diagnostics.Metrics;

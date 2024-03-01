@@ -1,7 +1,7 @@
-﻿using Microsoft.Extensions.Logging;
-using Spectre.Console;
+﻿namespace DotNetConf2024.Common;
 
-namespace Common;
+using Microsoft.Extensions.Logging;
+using Spectre.Console;
 
 public class LayoutUI(StatsService statsService, InMemoryLogger memoryLogger)
 {
@@ -100,12 +100,12 @@ public class LayoutUI(StatsService statsService, InMemoryLogger memoryLogger)
     {
         return level switch
         {
-            LogLevel.Trace => "[italic dim grey]trce[/]: ",
-            LogLevel.Debug => "[dim grey]dbug[/]: ",
-            LogLevel.Information => "[dim deepskyblue2]info[/]: ",
-            LogLevel.Warning => "[bold orange3]warn[/]: ",
-            LogLevel.Error => "[bold red]fail[/]: ",
-            LogLevel.Critical => "[bold underline red on white]crit[/]: ",
+            LogLevel.Trace => "[italic dim grey]trce:[/] ",
+            LogLevel.Debug => "[dim grey]dbug:[/] ",
+            LogLevel.Information => "[dim deepskyblue2]info:[/] ",
+            LogLevel.Warning => "[bold orange3]warn:[/] ",
+            LogLevel.Error => "[bold red]fail:[/] ",
+            LogLevel.Critical => "[bold underline red on white]crit:[/] ",
             _ => throw new ArgumentOutOfRangeException(nameof(level))
         };
     }

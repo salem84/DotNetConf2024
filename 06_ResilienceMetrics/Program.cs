@@ -1,4 +1,4 @@
-﻿using Common;
+﻿using DotNetConf2024.Common;
 using Microsoft.Extensions.DependencyInjection;
 using Microsoft.Extensions.Hosting;
 using Microsoft.Extensions.Logging;
@@ -13,7 +13,6 @@ HostApplicationBuilder builder = Host.CreateApplicationBuilder(args);
 IServiceCollection services = builder.Services;
 
 services.AddLogging(builder => builder.ConfigureAppLogging());
-services.AddSingleton<StatsService>();
 services.AddScoped<LayoutUI>();
 var httpClientBuilder = services.AddHttpClient<MealDbClient>();
 
@@ -38,7 +37,7 @@ httpClientBuilder.AddResilienceHandler("standard", (builder, context) =>
             OnRetry = arg =>
             {
                 var logger = context.ServiceProvider.GetRequiredService<ILogger<Program>>();
-                logger.LogWarning("OnRetry, Attempt: {0}", arg.AttemptNumber);
+                logger.LogDebug("---- OnRetry Event ---- Current Attempt: {0}", arg.AttemptNumber+1);
                 return default;
             }
         })
@@ -49,7 +48,7 @@ httpClientBuilder.AddResilienceHandler("standard", (builder, context) =>
 httpClientBuilder.AddResilienceHandler("chaos", (ResiliencePipelineBuilder<HttpResponseMessage> builder) =>
 {
     // Set the chaos injection rate to 50%
-    const double InjectionRate = 0.7;
+    const double InjectionRate = 0.1;
 
     _ = builder
                                                                  //.AddChaosLatency(InjectionRate, TimeSpan.FromSeconds(5)) // Add latency to simulate network delays

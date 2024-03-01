@@ -1,4 +1,4 @@
-﻿namespace Common;
+﻿namespace DotNetConf2024.Common;
 
 using Microsoft.Extensions.DependencyInjection;
 using Microsoft.Extensions.Logging;
@@ -9,15 +9,24 @@ public static class LoggingBuilderExtensions
 {
     public static ILoggingBuilder AddInMemory(this ILoggingBuilder builder)
     {
-        var logger = new InMemoryLogger();
-        builder.Services.AddSingleton(logger);
-        return builder.AddProvider(new InMemLoggerProvider(logger));
+        builder.Services.AddSingleton<StatsService>();
+        builder.Services.AddSingleton<InMemoryLogger>();
+        builder.Services.AddSingleton<ILoggerProvider, InMemLoggerProvider>(serviceProvider =>
+        {
+            var logger = serviceProvider.GetRequiredService<InMemoryLogger>();
+            return new InMemLoggerProvider(logger);
+        });
+        return builder;
     }
 
     public static ILoggingBuilder ConfigureAppLogging(this ILoggingBuilder builder)
     {
         builder.ClearProviders();
         builder.AddFilter("System.Net.Http", LogLevel.Error);
+        //builder.SetMinimumLevel(LogLevel.Trace);
+        builder.AddFilter("DotNetConf2024", LogLevel.Debug);
+        builder.AddFilter("Program", LogLevel.Debug);
+        builder.AddDebug();
         builder.AddInMemory();
         return builder;
     }
@@ -34,18 +43,21 @@ public class InMemLoggerProvider : ILoggerProvider
     public void Dispose() { }
 }
 
-public class InMemoryLogger : ILogger
+public class InMemoryLogger(StatsService statsService) : ILogger
 {
-    private readonly List<LogEvent> logLines = new List<LogEvent>();
+    private readonly List<LogEvent> _logLines = new List<LogEvent>();
+    private readonly StatsService _statsService = statsService;
 
-    public IEnumerable<LogEvent> RecordedLogs => this.logLines.AsReadOnly();
-    public IEnumerable<LogEvent> RecordedTraceLogs => this.logLines.Where(l => l.Level == LogLevel.Trace);
-    public IEnumerable<LogEvent> RecordedDebugLogs => this.logLines.Where(l => l.Level == LogLevel.Debug);
-    public IEnumerable<LogEvent> RecordedInformationLogs => this.logLines.Where(l => l.Level == LogLevel.Information);
-    public IEnumerable<LogEvent> RecordedWarningLogs => this.logLines.Where(l => l.Level == LogLevel.Warning);
-    public IEnumerable<LogEvent> RecordedErrorLogs => this.logLines.Where(l => l.Level == LogLevel.Error);
-    public IEnumerable<LogEvent> RecordedCriticalLogs => this.logLines.Where(l => l.Level == LogLevel.Critical);
-    public IEnumerable<LogEvent> LatestLogs => this.logLines.AsReadOnly().OrderByDescending(l => l.Timestamp).Take(20);
+    //private readonly Func<StatsService> _statsService = statsService;
+
+    public IEnumerable<LogEvent> RecordedLogs => _logLines.AsReadOnly();
+    public IEnumerable<LogEvent> RecordedTraceLogs => _logLines.Where(l => l.Level == LogLevel.Trace);
+    public IEnumerable<LogEvent> RecordedDebugLogs => _logLines.Where(l => l.Level == LogLevel.Debug);
+    public IEnumerable<LogEvent> RecordedInformationLogs => _logLines.Where(l => l.Level == LogLevel.Information);
+    public IEnumerable<LogEvent> RecordedWarningLogs => _logLines.Where(l => l.Level == LogLevel.Warning);
+    public IEnumerable<LogEvent> RecordedErrorLogs => _logLines.Where(l => l.Level == LogLevel.Error);
+    public IEnumerable<LogEvent> RecordedCriticalLogs => _logLines.Where(l => l.Level == LogLevel.Critical);
+    public IEnumerable<LogEvent> LatestLogs => _logLines.AsReadOnly().OrderByDescending(l => l.Timestamp).Take(20);
 
     public IDisposable BeginScope<TState>(TState state) => null;
 
@@ -53,7 +65,13 @@ public class InMemoryLogger : ILogger
 
     public void Log<TState>(LogLevel logLevel, EventId eventId, TState state, Exception exception, Func<TState, Exception, string> formatter)
     {
-        this.logLines.Add(new LogEvent(DateTime.Now, logLevel, exception, formatter(state, exception)));
+        var msg = formatter(state, exception);
+        _logLines.Add(new LogEvent(DateTime.Now, logLevel, exception, msg));
+
+        if(msg.Contains("EventName: 'OnRetry'", StringComparison.CurrentCultureIgnoreCase))
+        {
+            _statsService.Retries++;
+        }
     }
 }
 
