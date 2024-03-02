@@ -64,15 +64,11 @@ var host = builder.Build();
 
 var service = host.Services.GetRequiredService<MealDbClient>();
 var layoutUI = host.Services.GetRequiredService<LayoutUI>();
-var statsService = host.Services.GetRequiredService<StatsService>();
-using var cancellationSource = new CancellationTokenSource();
-var cancellationToken = cancellationSource.Token;
 
 layoutUI.AutoRefreshLayoutUI();
 
 while (true)
 {
+    var response = await service.GetRandomMealAsync();
     Thread.Sleep(1000);
-    statsService.TotalRequests++;
-    var response = await service.GetRandomMealAsync(cancellationToken);
 }

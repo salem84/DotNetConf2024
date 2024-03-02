@@ -18,7 +18,7 @@ var httpClientBuilder = services.AddHttpClient<MealDbClient>();
 
 services.Configure<TelemetryOptions>(options =>
 {
-    options.LoggerFactory = LoggerFactory.Create(builder => builder.AddInMemory());
+    options.LoggerFactory = LoggerFactory.Create(builder => builder.ConfigureAppLogging());
     options.MeteringEnrichers.Add(new CustomMeteringEnricher());
 });
 
@@ -37,7 +37,7 @@ httpClientBuilder.AddResilienceHandler("standard", (builder, context) =>
             OnRetry = arg =>
             {
                 var logger = context.ServiceProvider.GetRequiredService<ILogger<Program>>();
-                logger.LogDebug("---- OnRetry Event ---- Current Attempt: {0}", arg.AttemptNumber+1);
+                logger.LogDebug("---- OnRetry Event ---- Current Attempt: {0}", arg.AttemptNumber + 1);
                 return default;
             }
         })
@@ -48,12 +48,16 @@ httpClientBuilder.AddResilienceHandler("standard", (builder, context) =>
 httpClientBuilder.AddResilienceHandler("chaos", (ResiliencePipelineBuilder<HttpResponseMessage> builder) =>
 {
     // Set the chaos injection rate to 50%
-    const double InjectionRate = 0.1;
+    const double InjectionRate = 0.3;
 
     _ = builder
-                                                                 //.AddChaosLatency(InjectionRate, TimeSpan.FromSeconds(5)) // Add latency to simulate network delays
-                                                                 .AddChaosFault(InjectionRate, () => new InvalidOperationException("Chaos strategy injection!")); // Inject faults to simulate system errors
-                                                                                                                                                                  //.AddChaosOutcome(InjectionRate, () => new HttpResponseMessage(System.Net.HttpStatusCode.InternalServerError)); // Simulate server errors
+        // Add latency to simulate network delays
+        .AddChaosLatency(InjectionRate, TimeSpan.FromSeconds(5))
+        // Inject faults to simulate system errors
+        .AddChaosFault(InjectionRate, () => new InvalidOperationException("Chaos strategy injection!"))
+        // Simulate server errors
+        //.AddChaosOutcome(InjectionRate, () => new HttpResponseMessage(System.Net.HttpStatusCode.InternalServerError)) 
+        ;
 });
 
 services.AddMetrics();
@@ -71,21 +75,16 @@ var host = builder.Build();
 
 var service = host.Services.GetRequiredService<MealDbClient>();
 var layoutUI = host.Services.GetRequiredService<LayoutUI>();
-var statsService = host.Services.GetRequiredService<StatsService>();
 var meterProvider = host.Services.GetRequiredService<MeterProvider>();
-using var cancellationSource = new CancellationTokenSource();
-var cancellationToken = cancellationSource.Token;
 
 //layoutUI.AutoRefreshLayoutUI();
 
 while (true)
 {
     layoutUI.UpdateUI();
-    Thread.Sleep(1000);
-    statsService.TotalRequests++;
-    var response = await service.GetRandomMealAsync(cancellationToken);
-
+    var response = await service.GetRandomMealAsync();
     meterProvider.ForceFlush();
+    Thread.Sleep(1000);
 }
 
 internal sealed class CustomMeteringEnricher : MeteringEnricher

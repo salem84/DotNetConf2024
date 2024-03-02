@@ -66,11 +66,41 @@ public class InMemoryLogger(StatsService statsService) : ILogger
     public void Log<TState>(LogLevel logLevel, EventId eventId, TState state, Exception exception, Func<TState, Exception, string> formatter)
     {
         var msg = formatter(state, exception);
-        _logLines.Add(new LogEvent(DateTime.Now, logLevel, exception, msg));
+        bool addToList = true;
 
-        if(msg.Contains("EventName: 'OnRetry'", StringComparison.CurrentCultureIgnoreCase))
+        if (msg.Contains("RetryStrategy', Operation Key: '', Result: '200', Handled: 'False'", StringComparison.CurrentCultureIgnoreCase))
+        {
+            addToList = false;
+        }
+
+        if (msg.Contains("EventName: 'OnRetry'", StringComparison.CurrentCultureIgnoreCase))
         {
             _statsService.Retries++;
+        }
+
+        if (msg.Contains("Handled: 'True'", StringComparison.CurrentCultureIgnoreCase))
+        {
+            _statsService.HandledFailures++;
+        }
+
+        if (msg.Contains("MealDbClient-chaos//Chaos.Fault", StringComparison.CurrentCultureIgnoreCase))
+        {
+            _statsService.ChaosFault++;
+        }
+
+        if (msg.Contains("MealDbClient-chaos//Chaos.Outcome", StringComparison.CurrentCultureIgnoreCase))
+        {
+            _statsService.ChaosErrorOutcome++;
+        }
+
+        if (msg.Contains("MealDbClient-chaos//Chaos.Latency", StringComparison.CurrentCultureIgnoreCase))
+        {
+            _statsService.ChaosLatency++;
+        }
+
+        if (addToList)
+        {
+            _logLines.Add(new LogEvent(DateTime.Now, logLevel, exception, msg));
         }
     }
 }

@@ -1,7 +1,6 @@
 ﻿using DotNetConf2024.Common;
 using Microsoft.Extensions.DependencyInjection;
 using Microsoft.Extensions.Hosting;
-using Microsoft.Extensions.Logging;
 using Polly;
 using Polly.Simmy;
 
@@ -18,8 +17,10 @@ httpClientBuilder.AddResilienceHandler("chaos", (ResiliencePipelineBuilder<HttpR
     const double InjectionRate = 0.3;
 
     _ = builder
-        .AddChaosLatency(InjectionRate, TimeSpan.FromSeconds(1)) // Add latency to simulate network delays
-        .AddChaosOutcome(InjectionRate, () => new HttpResponseMessage(System.Net.HttpStatusCode.InternalServerError)) // Simulate server errors
+        // Add latency to simulate network delays
+        .AddChaosLatency(InjectionRate, TimeSpan.FromSeconds(1))
+        // Simulate server errors
+        .AddChaosOutcome(InjectionRate, () => new HttpResponseMessage(System.Net.HttpStatusCode.InternalServerError))
         ;
 });
 
@@ -27,14 +28,10 @@ var host = builder.Build();
 
 var service = host.Services.GetRequiredService<MealDbClient>();
 var layoutUI = host.Services.GetRequiredService<LayoutUI>();
-var statsService = host.Services.GetRequiredService<StatsService>();
-using var cancellationSource = new CancellationTokenSource();
-var cancellationToken = cancellationSource.Token;
 
 while (true)
 {
     layoutUI.UpdateUI();
+    var response = await service.GetRandomMealAsync();
     Thread.Sleep(1000);
-    statsService.TotalRequests++;
-    var response = await service.GetRandomMealAsync(cancellationToken);
 }

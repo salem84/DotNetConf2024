@@ -36,17 +36,26 @@ public class LayoutUI(StatsService statsService, InMemoryLogger memoryLogger)
             new Layout("Logs"));
 
         layout["Config"].Update(
-            new Panel("[blink]PRESS ANY KEY TO QUIT[/]")
-                .Expand()
-                .BorderColor(Color.Yellow)
-                .Padding(0, 0));
+            new Panel(
+                new BarChart()
+                    .CenterLabel()
+                    .AddItem("Latency", statsService.ChaosLatency, Color.Yellow)
+                    .AddItem("Fault", statsService.ChaosFault, Color.Red)
+                    .AddItem("Error Outcome", statsService.ChaosErrorOutcome, Color.Orange3)
+                )
+            .PadTop(1)
+            .Header("Chaos Injected")
+            .Expand()
+            );
 
         layout["Stats"].Update(
             new Panel(
                 new BarChart()
                     .CenterLabel()
-                    .AddItem("Requests", statsService.TotalRequests, Color.Yellow)
-                    .AddItem("Retries", statsService.Retries, Color.Red)
+                    .AddItem("Requests", statsService.TotalRequests, Color.Blue)
+                    .AddItem("Retries", statsService.Retries, Color.Gold1)
+                    .AddItem("Ev. Successes", statsService.EventualSuccesses, Color.Green)
+                    .AddItem("Ev. Failures", statsService.EventualFailures, Color.Red)
                 )
             .PadTop(1)
             .Header("Statistics")
@@ -93,7 +102,7 @@ public class LayoutUI(StatsService statsService, InMemoryLogger memoryLogger)
 
     private Markup FormatLogToSpectre(LogEvent logEvent)
     {
-        return new Markup($"{logEvent.Timestamp.ToLongTimeString()} {GetLevelMarkup(logEvent.Level)}{logEvent.Message}");
+        return new Markup($"{logEvent.Timestamp.ToString("HH:mm:ss.fff")} {GetLevelMarkup(logEvent.Level)}{logEvent.Message}");
     }
 
     private string GetLevelMarkup(LogLevel level)

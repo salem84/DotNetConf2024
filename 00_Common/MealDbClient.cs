@@ -18,28 +18,27 @@ public class MealDbClient
         _meterFactory = meterFactory;
         _client.BaseAddress = new Uri("https://www.themealdb.com/api/json/v1/1/");
     }
-    public async Task<SearchMealResponse> GetRandomMealAsync(CancellationToken cancellationToken)
+    public async Task<SearchMealResponse> GetRandomMealAsync()
     {
-        var meter = _meterFactory.Create("MeterName");
-        var instrument = meter.CreateCounter<int>("counter", null, null, new TagList() { { "counterKey1", "counterValue1" } });
-        instrument.Add(1);
+        _statsService.TotalRequests++;
+
 
         SearchMealResponse mealResult = new SearchMealResponse([]);
         var watch = Stopwatch.StartNew();
         try
         {
-            var responseMessage = await _client.GetAsync("random.php", cancellationToken);
+            var responseMessage = await _client.GetAsync("random.php");
             if (responseMessage.IsSuccessStatusCode)
             {
                 mealResult = await responseMessage.Content.ReadFromJsonAsync<SearchMealResponse>() ?? new SearchMealResponse([]);
             }
             string mealName = mealResult.Meals.FirstOrDefault()?.Name ?? string.Empty;
-            _statsService.HttpResultEvents.Add(new HttpResultEvent(DateTime.Now, (int)responseMessage.StatusCode, watch.ElapsedMilliseconds, mealName));
+            _statsService.AddHttpResultEvent(new HttpResultEvent(DateTime.Now, (int)responseMessage.StatusCode, watch.ElapsedMilliseconds, mealName));
             return mealResult;
         }
         catch (Exception ex)
         {
-            _statsService.HttpResultEvents.Add(new HttpResultEvent(DateTime.Now, -1, watch.ElapsedMilliseconds, ex.Message));
+            _statsService.AddHttpResultEvent(new HttpResultEvent(DateTime.Now, -1, watch.ElapsedMilliseconds, ex.Message));
             return new SearchMealResponse([]);
         }
     }
