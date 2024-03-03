@@ -18,7 +18,7 @@ namespace DotNetConf2024.CustomResilienceWithMetrics
                 CircuitState.HalfOpen => "orange3",
                 _ => "white"
             };
-            layoutUI.AddCustomStats(new Markup($"Circuit State: [{color}]{state}[/]"));
+            layoutUI.AddCustomStats(new Markup($"Circuit State  [{color}]{state}[/]"));
             return layoutUI;
         }
     }

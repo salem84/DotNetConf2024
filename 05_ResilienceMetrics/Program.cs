@@ -116,12 +116,12 @@ httpClientBuilder.AddResilienceHandler("chaos", (ResiliencePipelineBuilder<HttpR
         ;
 });
 
-string serviceId = $"R{RandomNumberGenerator.GetInt32(99)}";
+string jobId = $"R{RandomNumberGenerator.GetInt32(99)}";
 
 services.AddMetrics();
 services.AddOpenTelemetry()
     .WithMetrics(opts => opts
-    .SetResourceBuilder(ResourceBuilder.CreateDefault().AddService(serviceId))
+    .SetResourceBuilder(ResourceBuilder.CreateDefault().AddService(jobId))
     .AddMeter("Polly")
     .AddHttpClientInstrumentation()
     .AddOtlpExporter(options =>
@@ -139,7 +139,7 @@ var layoutUI = scope.ServiceProvider.GetRequiredService<LayoutUI>();
 var meterProvider = scope.ServiceProvider.GetRequiredService<MeterProvider>();
 var logger = scope.ServiceProvider.GetRequiredService<ILogger<Program>>();
 
-logger.LogInformation("Service ID: {ServiceId}", serviceId);
+logger.LogInformation("Job ID: {jobId}", jobId);
 //layoutUI.AutoRefreshLayoutUI();
 
 while (true)
