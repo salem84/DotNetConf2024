@@ -1,0 +1,10 @@
+{
+  "profiles": {
+    "05_CustomResilienceWithMetrics": {
+      "commandName": "Project",
+      "environmentVariables": {
+        "CHAOS_ENABLED": "1"
+      }
+    }
+  }
+}
