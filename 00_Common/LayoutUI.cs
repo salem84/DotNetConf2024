@@ -5,6 +5,11 @@ using Spectre.Console;
 
 public class LayoutUI(StatsService statsService, InMemoryLogger memoryLogger)
 {
+    private readonly List<Markup> CustomStats = new List<Markup>();
+    private readonly Color ColorChaosLatency = Color.Yellow;
+    private readonly Color ColorChaosFault = Color.Red;
+    private readonly Color ColorChaosErrorOutcome = Color.Orange3;
+
     public void AutoRefreshLayoutUI()
     {
         // crea un thread separato che gira in background
@@ -39,9 +44,9 @@ public class LayoutUI(StatsService statsService, InMemoryLogger memoryLogger)
             new Panel(
                 new BarChart()
                     .CenterLabel()
-                    .AddItem("Latency", statsService.ChaosLatency, Color.Yellow)
-                    .AddItem("Fault", statsService.ChaosFault, Color.Red)
-                    .AddItem("Error Outcome", statsService.ChaosErrorOutcome, Color.Orange3)
+                    .AddItem("Latency", statsService.ChaosLatency, ColorChaosLatency)
+                    .AddItem("Fault", statsService.ChaosFault, ColorChaosFault)
+                    .AddItem("Error Outcome", statsService.ChaosErrorOutcome, ColorChaosErrorOutcome)
                 )
             .PadTop(1)
             .Header("Chaos Injected")
@@ -50,13 +55,16 @@ public class LayoutUI(StatsService statsService, InMemoryLogger memoryLogger)
 
         layout["Stats"].Update(
             new Panel(
-                new BarChart()
-                    .CenterLabel()
-                    .AddItem("Requests", statsService.TotalRequests, Color.Blue)
-                    .AddItem("Retries", statsService.Retries, Color.Gold1)
-                    .AddItem("Ev. Successes", statsService.EventualSuccesses, Color.Green)
-                    .AddItem("Ev. Failures", statsService.EventualFailures, Color.Red)
-                )
+                new Grid().Collapse().AddColumns(1)
+                .AddRow(
+                    new BarChart()
+                        .CenterLabel()
+                        .AddItem("Requests", statsService.TotalRequests, Color.Blue)
+                        .AddItem("Retries", statsService.Retries, Color.Gold1)
+                        .AddItem("Ev. Successes", statsService.EventualSuccesses, Color.Green)
+                        .AddItem("Ev. Failures", statsService.EventualFailures, Color.Red)
+                    )
+                .AddRow(new Rows(CustomStats)))
             .PadTop(1)
             .Header("Statistics")
             .Expand());
@@ -102,7 +110,16 @@ public class LayoutUI(StatsService statsService, InMemoryLogger memoryLogger)
 
     private Markup FormatLogToSpectre(LogEvent logEvent)
     {
-        return new Markup($"{logEvent.Timestamp.ToString("HH:mm:ss.fff")} {GetLevelMarkup(logEvent.Level)}{logEvent.Message}");
+        var message = logEvent.Message
+            .Replace("Chaos.OnLatency", $"[{ColorChaosLatency}]Chaos.OnLatency[/]")
+            .Replace("Chaos.OnFault", $"[{ColorChaosFault}]Chaos.OnFault[/]")
+            .Replace("Chaos.OnOutcome", $"[{ColorChaosErrorOutcome}]Chaos.OnOutcome[/]")
+            .Replace("OnCircuitClosed", "[white]OnCircuitClosed[/]")
+            .Replace("OnCircuitHalfOpened", "[white]OnCircuitHalfOpened[/]")
+            .Replace("OnCircuitOpened", "[white]OnCircuitOpened[/]")
+            .Replace("OnRetry", "[white]OnRetry[/]");
+
+        return new Markup($"[grey]{logEvent.Timestamp.ToString("HH:mm:ss.fff")}[/] {GetLevelMarkup(logEvent.Level)}{message}");
     }
 
     private string GetLevelMarkup(LogLevel level)
@@ -117,5 +134,11 @@ public class LayoutUI(StatsService statsService, InMemoryLogger memoryLogger)
             LogLevel.Critical => "[bold underline red on white]crit:[/] ",
             _ => throw new ArgumentOutOfRangeException(nameof(level))
         };
+    }
+
+    public void AddCustomStats(Markup markup)
+    {
+        CustomStats.Clear();
+        CustomStats.Add(markup);
     }
 }

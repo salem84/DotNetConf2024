@@ -9,10 +9,12 @@ services.AddLogging(builder => builder.ConfigureAppLogging());
 services.AddScoped<LayoutUI>();
 services.AddHttpClient<MealDbClient>();
 
-var host = builder.Build();
+using IHost host = builder.Build();
 
-var service = host.Services.GetRequiredService<MealDbClient>();
-var layoutUI = host.Services.GetRequiredService<LayoutUI>();
+using IServiceScope scope = host.Services.CreateScope();
+
+var service = scope.ServiceProvider.GetRequiredService<MealDbClient>();
+var layoutUI = scope.ServiceProvider.GetRequiredService<LayoutUI>();
 
 while (true)
 {

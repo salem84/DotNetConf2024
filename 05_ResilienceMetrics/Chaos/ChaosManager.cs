@@ -8,7 +8,7 @@ public class ChaosManager : IChaosManager
     private Stopwatch _stopWatch;
     private double TotalSeconds => _stopWatch.Elapsed.TotalSeconds;
     private Random _random = new Random();
-    private bool IsCrashed => (TotalSeconds % 60) > 30;
+    private bool IsCrashed => (TotalSeconds % 60) >= 30 && (TotalSeconds % 60) <= 50;
     private bool IsDegraded => (TotalSeconds % 60) >= 10 && (TotalSeconds % 60) <= 20;
 
 

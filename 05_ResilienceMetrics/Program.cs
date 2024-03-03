@@ -1,4 +1,5 @@
 ﻿using DotNetConf2024.Common;
+using DotNetConf2024.CustomResilienceWithMetrics;
 using DotNetConf2024.CustomResilienceWithMetrics.Chaos;
 using Microsoft.Extensions.DependencyInjection;
 using Microsoft.Extensions.Hosting;
@@ -11,9 +12,10 @@ using Polly.CircuitBreaker;
 using Polly.Retry;
 using Polly.Simmy;
 using Polly.Simmy.Fault;
+using Polly.Simmy.Latency;
 using Polly.Simmy.Outcomes;
 using Polly.Telemetry;
-using System.Net;
+using System.Security.Cryptography;
 
 HostApplicationBuilder builder = Host.CreateApplicationBuilder(args);
 IServiceCollection services = builder.Services;
@@ -30,33 +32,38 @@ services.Configure<TelemetryOptions>(options =>
     options.MeteringEnrichers.Add(new CustomMeteringEnricher());
 });
 
+var stateProvider = new CircuitBreakerStateProvider();
+
 httpClientBuilder.AddResilienceHandler("standard", (builder, context) =>
 {
     builder
-        //.AddRetry(new RetryStrategyOptions<HttpResponseMessage>
-        //{
-        //    ShouldHandle = new PredicateBuilder<HttpResponseMessage>()
-        //        .Handle<Exception>(),
-        //    //.HandleResult(r => r.StatusCode == HttpStatusCode.InternalServerError),
-        //    Name = "RetryStrategy",
-        //    MaxRetryAttempts = 5,
-        //    Delay = TimeSpan.FromMilliseconds(200),
-        //    UseJitter = true,
-        //    OnRetry = arg =>
-        //    {
-        //        var logger = context.ServiceProvider.GetRequiredService<ILogger<Program>>();
-        //        logger.LogDebug("---- OnRetry Event ---- Current Attempt: {AttemptNumber}", arg.AttemptNumber + 1);
-        //        return default;
-        //    }
-        //})
+        .AddRetry(new RetryStrategyOptions<HttpResponseMessage>
+        {
+            ShouldHandle = new PredicateBuilder<HttpResponseMessage>()
+                .Handle<Exception>()
+                .HandleResult(r => !r.IsSuccessStatusCode),
+            Name = "RetryStrategy",
+            MaxRetryAttempts = 5,
+            Delay = TimeSpan.FromMilliseconds(200),
+            UseJitter = true,
+            OnRetry = arg =>
+            {
+                var logger = context.ServiceProvider.GetRequiredService<ILogger<Program>>();
+                logger.LogDebug("---- OnRetry Event ---- Current Attempt: {AttemptNumber}", arg.AttemptNumber + 1);
+                return default;
+            }
+        })
         .AddCircuitBreaker(new CircuitBreakerStrategyOptions<HttpResponseMessage>
         {
             Name = "CircuitBreakerStrategy",
-            FailureRatio = 0.1,
-            //SamplingDuration = TimeSpan.FromSeconds(60),
+            FailureRatio = 0.2,
+            SamplingDuration = TimeSpan.FromSeconds(60),
             ShouldHandle = new PredicateBuilder<HttpResponseMessage>()
-                .HandleResult(r => r.StatusCode == HttpStatusCode.InternalServerError),
-            BreakDuration = TimeSpan.FromSeconds(30),
+                .Handle<Exception>()
+                .HandleResult(r => !r.IsSuccessStatusCode),
+            BreakDuration = TimeSpan.FromSeconds(15),
+            MinimumThroughput = 3,
+            StateProvider = stateProvider,
             OnOpened = arg =>
             {
                 var logger = context.ServiceProvider.GetRequiredService<ILogger<Program>>();
@@ -88,12 +95,12 @@ httpClientBuilder.AddResilienceHandler("chaos", (ResiliencePipelineBuilder<HttpR
     var chaosManager = context.ServiceProvider.GetRequiredService<IChaosManager>();
 
     _ = builder
-        //.AddChaosLatency(new ChaosLatencyStrategyOptions
-        //{
-        //    EnabledGenerator = args => chaosManager.IsChaosEnabledAsync(args.Context),
-        //    InjectionRateGenerator = args => chaosManager.GetLatencyInjectionRateAsync(args.Context),
-        //    LatencyGenerator = args => chaosManager.GenerateLatency(args.Context)
-        //})
+        .AddChaosLatency(new ChaosLatencyStrategyOptions
+        {
+            EnabledGenerator = args => chaosManager.IsChaosEnabledAsync(args.Context),
+            InjectionRateGenerator = args => chaosManager.GetLatencyInjectionRateAsync(args.Context),
+            LatencyGenerator = args => chaosManager.GenerateLatency(args.Context)
+        })
         .AddChaosFault(new ChaosFaultStrategyOptions
         {
             EnabledGenerator = args => chaosManager.IsChaosEnabledAsync(args.Context),
@@ -109,10 +116,12 @@ httpClientBuilder.AddResilienceHandler("chaos", (ResiliencePipelineBuilder<HttpR
         ;
 });
 
+string serviceId = $"R{RandomNumberGenerator.GetInt32(99)}";
+
 services.AddMetrics();
 services.AddOpenTelemetry()
     .WithMetrics(opts => opts
-    .SetResourceBuilder(ResourceBuilder.CreateDefault().AddService("ResilienceMetrics"))
+    .SetResourceBuilder(ResourceBuilder.CreateDefault().AddService(serviceId))
     .AddMeter("Polly")
     .AddHttpClientInstrumentation()
     .AddOtlpExporter(options =>
@@ -121,21 +130,28 @@ services.AddOpenTelemetry()
         options.Protocol = OpenTelemetry.Exporter.OtlpExportProtocol.HttpProtobuf;
     }));
 
-var host = builder.Build();
+using IHost host = builder.Build();
 
-var service = host.Services.GetRequiredService<MealDbClient>();
-var layoutUI = host.Services.GetRequiredService<LayoutUI>();
-var meterProvider = host.Services.GetRequiredService<MeterProvider>();
+using IServiceScope scope = host.Services.CreateScope();
 
+var service = scope.ServiceProvider.GetRequiredService<MealDbClient>();
+var layoutUI = scope.ServiceProvider.GetRequiredService<LayoutUI>();
+var meterProvider = scope.ServiceProvider.GetRequiredService<MeterProvider>();
+var logger = scope.ServiceProvider.GetRequiredService<ILogger<Program>>();
+
+logger.LogInformation("Service ID: {ServiceId}", serviceId);
 //layoutUI.AutoRefreshLayoutUI();
 
 while (true)
 {
-    layoutUI.UpdateUI();
+    layoutUI
+        .AddCircuitState(stateProvider.CircuitState)
+        .UpdateUI();
     var response = await service.GetRandomMealAsync();
     meterProvider.ForceFlush();
     Thread.Sleep(1000);
 }
+
 
 internal sealed class CustomMeteringEnricher : MeteringEnricher
 {
