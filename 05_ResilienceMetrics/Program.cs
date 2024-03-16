@@ -53,7 +53,7 @@ httpClientBuilder.AddResilienceHandler("standard", (builder, context) =>
         .AddRetry(new RetryStrategyOptions<HttpResponseMessage>
         {
             ShouldHandle = new PredicateBuilder<HttpResponseMessage>()
-                .Handle<Exception>()
+                .Handle<InvalidOperationException>()
                 .HandleResult(r => !r.IsSuccessStatusCode),
             Name = "RetryStrategy",
             MaxRetryAttempts = 5,
