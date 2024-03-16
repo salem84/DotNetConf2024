@@ -1,6 +1,7 @@
 ﻿using DotNetConf2024.Common;
 using DotNetConf2024.CustomResilienceWithMetrics;
 using DotNetConf2024.CustomResilienceWithMetrics.Chaos;
+using Microsoft.Extensions.Configuration;
 using Microsoft.Extensions.DependencyInjection;
 using Microsoft.Extensions.Hosting;
 using Microsoft.Extensions.Http.Resilience;
@@ -26,11 +27,17 @@ services.AddSingleton<IChaosManager, ChaosManager>();
 
 var httpClientBuilder = services.AddHttpClient<MealDbClient>();
 
-//var configuration = new ConfigurationBuilder()
-//    .AddJsonFile("appsettings.json", optional: false, reloadOnChange: true)
-//    .Build();
+var configuration = new ConfigurationBuilder()
+    .AddJsonFile("appsettings.json", optional: false, reloadOnChange: true)
+    .Build();
 
-//services.Configure<CustomPipelineOptions>("custom-pipeline-resilience", configuration.GetSection("CustomPipelineResilience"));
+services.Configure<CustomPipelineOptions>("custom-pipeline-resilience", configuration.GetSection("CustomPipelineResilience"));
+
+services.Configure<TelemetryOptions>(options =>
+{
+    options.LoggerFactory = LoggerFactory.Create(builder => builder.ConfigureAppLogging());
+    options.MeteringEnrichers.Add(new CustomMeteringEnricher());
+});
 
 var stateProvider = new CircuitBreakerStateProvider();
 
@@ -93,12 +100,6 @@ httpClientBuilder.AddResilienceHandler("standard", (builder, context) =>
 
     // Alternative to services.Configure<TelemetryOptions>()
     //.ConfigureTelemetry(telemetryOptions)
-});
-
-services.Configure<TelemetryOptions>(options =>
-{
-    options.LoggerFactory = LoggerFactory.Create(builder => builder.ConfigureAppLogging());
-    options.MeteringEnrichers.Add(new CustomMeteringEnricher());
 });
 
 httpClientBuilder.AddResilienceHandler("chaos", (ResiliencePipelineBuilder<HttpResponseMessage> builder, ResilienceHandlerContext context) =>
