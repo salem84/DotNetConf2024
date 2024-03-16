@@ -26,16 +26,22 @@ services.AddSingleton<IChaosManager, ChaosManager>();
 
 var httpClientBuilder = services.AddHttpClient<MealDbClient>();
 
-services.Configure<TelemetryOptions>(options =>
-{
-    options.LoggerFactory = LoggerFactory.Create(builder => builder.ConfigureAppLogging());
-    options.MeteringEnrichers.Add(new CustomMeteringEnricher());
-});
+//var configuration = new ConfigurationBuilder()
+//    .AddJsonFile("appsettings.json", optional: false, reloadOnChange: true)
+//    .Build();
+
+//services.Configure<CustomPipelineOptions>("custom-pipeline-resilience", configuration.GetSection("CustomPipelineResilience"));
 
 var stateProvider = new CircuitBreakerStateProvider();
 
 httpClientBuilder.AddResilienceHandler("standard", (builder, context) =>
 {
+    // Enable dynamic reloads of this pipeline whenever the named CustomPipelineOptions change
+    context.EnableReloads<CustomPipelineOptions>("custom-pipeline-resilience");
+
+    // Retrieve the named options
+    var options = context.GetOptions<CustomPipelineOptions>("custom-pipeline-resilience");
+
     builder
         .AddRetry(new RetryStrategyOptions<HttpResponseMessage>
         {
@@ -83,10 +89,16 @@ httpClientBuilder.AddResilienceHandler("standard", (builder, context) =>
                 return default;
             }
         })
-        .AddTimeout(TimeSpan.FromSeconds(5));
+        .AddTimeout(options.Timeout);
 
     // Alternative to services.Configure<TelemetryOptions>()
     //.ConfigureTelemetry(telemetryOptions)
+});
+
+services.Configure<TelemetryOptions>(options =>
+{
+    options.LoggerFactory = LoggerFactory.Create(builder => builder.ConfigureAppLogging());
+    options.MeteringEnrichers.Add(new CustomMeteringEnricher());
 });
 
 httpClientBuilder.AddResilienceHandler("chaos", (ResiliencePipelineBuilder<HttpResponseMessage> builder, ResilienceHandlerContext context) =>
@@ -150,20 +162,4 @@ while (true)
     var response = await service.GetRandomMealAsync();
     meterProvider.ForceFlush();
     Thread.Sleep(1000);
-}
-
-
-internal sealed class CustomMeteringEnricher : MeteringEnricher
-{
-    public override void Enrich<TResult, TArgs>(in EnrichmentContext<TResult, TArgs> context)
-    {
-        if (context.TelemetryEvent.Arguments is OnRetryArguments<TResult> retryArgs)
-        {
-            context.Tags.Add(new("retry.attempt", retryArgs.AttemptNumber));
-            context.Tags.Add(new("retry.outcome", retryArgs.Outcome));
-            context.Tags.Add(new("retry.duration", retryArgs.Duration));
-            context.Tags.Add(new("retry.retryDelay", retryArgs.RetryDelay));
-
-        }
-    }
 }
