@@ -49,7 +49,7 @@ public class LayoutUI(StatsService statsService, InMemoryLogger memoryLogger)
                     .AddItem("Error Outcome", statsService.ChaosErrorOutcome, ColorChaosErrorOutcome)
                 )
             .PadTop(1)
-            .Header("Chaos Injected")
+            .Header("[white]Chaos Injected[/]")
             .Expand()
             );
 
@@ -66,7 +66,7 @@ public class LayoutUI(StatsService statsService, InMemoryLogger memoryLogger)
                     )
                 .AddRow(new Rows(CustomStats)))
             .PadTop(1)
-            .Header("Statistics")
+            .Header("[white]Statistics[/]")
             .Expand());
 
 
@@ -78,13 +78,13 @@ public class LayoutUI(StatsService statsService, InMemoryLogger memoryLogger)
         var latestLogs = memoryLogger.LatestLogs.Select(FormatLogToSpectre);
         layout["Logs"].Update(
             new Panel(new Rows(latestLogs))
-                .Header("[green]Logs[/]")
+                .Header("[white]Logs[/]")
                 .Expand());
 
         var latestResults = statsService.HttpResultEvents.OrderByDescending(x => x.Timestamp).Select(FormatResultToSpectre);
         layout["Results"].Update(
             new Panel(new Rows(latestResults))
-                .Header("[green]Results[/]")
+                .Header("[white]Results[/]")
                 .Expand());
 
         AnsiConsole.Clear();
