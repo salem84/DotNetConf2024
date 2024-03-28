@@ -68,7 +68,8 @@ public class InMemoryLogger(StatsService statsService) : ILogger
         var msg = formatter(state, exception);
         bool addToList = true;
 
-        if (msg.Contains("RetryStrategy', Operation Key: '', Result: '200', Handled: 'False'", StringComparison.CurrentCultureIgnoreCase))
+        if (msg.Contains("RetryStrategy', Operation Key: '', Result: '200', Handled: 'False'", StringComparison.CurrentCultureIgnoreCase) ||
+            msg.Contains("Standard-Retry', Operation Key: '', Result: '200', Handled: 'False'", StringComparison.CurrentCultureIgnoreCase))
         {
             addToList = false;
         }
@@ -83,17 +84,17 @@ public class InMemoryLogger(StatsService statsService) : ILogger
             _statsService.HandledFailures++;
         }
 
-        if (msg.Contains("MealDbClient-chaos//Chaos.Fault", StringComparison.CurrentCultureIgnoreCase))
+        if (msg.Contains("-chaos//Chaos.Fault", StringComparison.CurrentCultureIgnoreCase))
         {
             _statsService.ChaosFault++;
         }
 
-        if (msg.Contains("MealDbClient-chaos//Chaos.Outcome", StringComparison.CurrentCultureIgnoreCase))
+        if (msg.Contains("-chaos//Chaos.Outcome", StringComparison.CurrentCultureIgnoreCase))
         {
             _statsService.ChaosErrorOutcome++;
         }
 
-        if (msg.Contains("MealDbClient-chaos//Chaos.Latency", StringComparison.CurrentCultureIgnoreCase))
+        if (msg.Contains("-chaos//Chaos.Latency", StringComparison.CurrentCultureIgnoreCase))
         {
             _statsService.ChaosLatency++;
         }
